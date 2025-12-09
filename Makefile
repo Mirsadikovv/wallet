@@ -39,7 +39,7 @@ clean: ## Очистить сборочные файлы
 	@echo "$(YELLOW)Cleaning...$(NC)"
 	rm -f $(APP_NAME)
 	rm -f coverage.out coverage.html
-	rm -rf docs/swagger/
+	rm -rf docs/swagger/*.go docs/swagger/*.json docs/swagger/*.yaml
 	@echo "$(GREEN)✓ Cleaned$(NC)"
 
 install: ## Установить зависимости

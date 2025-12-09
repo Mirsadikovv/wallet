@@ -178,3 +178,24 @@ func (s *WalletService) GetTransactions(ctx context.Context, walletID int64, lim
 
 	return transactions, nil
 }
+
+func (s *WalletService) SendCoins(ctx context.Context, walletID int64, recipient, amount, comment string) (*SendTransactionResult, error) {
+	wallet, err := s.GetWalletByID(ctx, walletID)
+	if err != nil {
+		return nil, err
+	}
+
+	seedPhrase, err := DecryptSeed(wallet.EncryptedSeed, s.encryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt seed: %w", err)
+	}
+
+	seedWords := strings.Split(seedPhrase, " ")
+
+	result, err := s.tonService.SendTransaction(ctx, seedWords, wallet.WalletType, recipient, amount, comment)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send transaction: %w", err)
+	}
+
+	return result, nil
+}

@@ -342,3 +342,71 @@ func (h *WalletHandler) GetTransactions(c *gin.Context) {
 		Total:        len(txDTOs),
 	})
 }
+
+// SendCoins отправляет TON монеты на другой кошелек
+// @Summary Отправить TON монеты
+// @Description Отправляет указанную сумму TON с кошелька на другой адрес
+// @Tags wallet
+// @Accept json
+// @Produce json
+// @Param id path int true "ID кошелька"
+// @Param request body dto.SendCoinsRequest true "Данные для отправки"
+// @Success 200 {object} dto.SendCoinsResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/v1/wallet/{id}/send [post]
+func (h *WalletHandler) SendCoins(c *gin.Context) {
+	walletIDStr := c.Param("id")
+	walletID, err := strconv.ParseInt(walletIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error:   "invalid_wallet_id",
+			Message: "ID кошелька должен быть числом",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	var req dto.SendCoinsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error:   "invalid_request",
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// Проверяем существование кошелька
+	_, err = h.walletService.GetWalletByID(c.Request.Context(), walletID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{
+			Error:   "wallet_not_found",
+			Message: err.Error(),
+			Code:    http.StatusNotFound,
+		})
+		return
+	}
+
+	// Отправляем транзакцию
+	result, err := h.walletService.SendCoins(c.Request.Context(), walletID, req.Recipient, req.Amount, req.Comment)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Error:   "failed_to_send_coins",
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.SendCoinsResponse{
+		Hash:      result.Hash,
+		Lt:        result.Lt,
+		Address:   result.Address,
+		Amount:    result.Amount,
+		Fee:       result.Fee,
+		Recipient: result.Recipient,
+		Comment:   result.Comment,
+	})
+}

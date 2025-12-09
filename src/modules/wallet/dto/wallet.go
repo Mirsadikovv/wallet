@@ -79,3 +79,19 @@ type GetTransactionsResponse struct {
 	Transactions []*TransactionDTO `json:"transactions"`
 	Total        int               `json:"total"`
 }
+
+type SendCoinsRequest struct {
+	Recipient string `json:"recipient" binding:"required"` // Адрес получателя
+	Amount    string `json:"amount" binding:"required"`    // Сумма в TON (например "1.5")
+	Comment   string `json:"comment,omitempty"`            // Комментарий к транзакции
+}
+
+type SendCoinsResponse struct {
+	Hash      string `json:"hash"`       // Хеш транзакции
+	Lt        uint64 `json:"lt"`         // Logical time
+	Address   string `json:"address"`    // Адрес отправителя
+	Amount    string `json:"amount"`     // Отправленная сумма
+	Fee       string `json:"fee"`        // Комиссия
+	Recipient string `json:"recipient"`  // Адрес получателя
+	Comment   string `json:"comment,omitempty"` // Комментарий
+}

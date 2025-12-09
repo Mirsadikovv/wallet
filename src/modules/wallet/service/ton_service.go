@@ -10,10 +10,12 @@ import (
 	"io"
 	"strings"
 
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 type TONService struct {
@@ -295,6 +297,82 @@ func (s *TONService) GetTransactions(ctx context.Context, seedWords []string, wa
 	}
 
 	return transactions, nil
+}
+
+type SendTransactionResult struct {
+	Hash      string `json:"hash"`
+	Lt        uint64 `json:"lt"`
+	Address   string `json:"address"`
+	Amount    string `json:"amount"`
+	Fee       string `json:"fee"`
+	Recipient string `json:"recipient"`
+	Comment   string `json:"comment,omitempty"`
+}
+
+func (s *TONService) SendTransaction(ctx context.Context, seedWords []string, walletType, recipient, amount, comment string) (*SendTransactionResult, error) {
+	config := wallet.ConfigV5R1Final{
+		NetworkGlobalID: wallet.MainnetGlobalID,
+	}
+
+	w, err := wallet.FromSeed(s.api, seedWords, config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create wallet: %w", err)
+	}
+
+	// Парсим адрес получателя
+	addr, err := address.ParseAddr(recipient)
+	if err != nil {
+		return nil, fmt.Errorf("invalid recipient address: %w", err)
+	}
+
+	// Конвертируем сумму в TON Coins
+	coins, err := tlb.FromTON(amount)
+	if err != nil {
+		return nil, fmt.Errorf("invalid amount: %w", err)
+	}
+
+	// Создаем сообщение с комментарием (если есть)
+	var body *cell.Cell
+	if comment != "" {
+		body, err = wallet.CreateCommentCell(comment)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create comment: %w", err)
+		}
+	}
+
+	// Отправляем транзакцию
+	tx, block, err := w.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: 3, // pay fees separately, ignore errors
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      addr.IsBounceable(),
+			DstAddr:     addr,
+			Amount:      coins,
+			Body:        body,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to send transaction: %w", err)
+	}
+
+	// Вычисляем комиссию
+	fee := "0"
+	if tx.TotalFees.Coins.Nano() != nil {
+		fee = tx.TotalFees.Coins.TON()
+	}
+
+	// Используем block для избежания "declared and not used"
+	_ = block
+
+	return &SendTransactionResult{
+		Hash:      base64.StdEncoding.EncodeToString(tx.Hash),
+		Lt:        tx.LT,
+		Address:   w.WalletAddress().String(),
+		Amount:    amount,
+		Fee:       fee,
+		Recipient: recipient,
+		Comment:   comment,
+	}, nil
 }
 
 func TONAmount(amount string) (tlb.Coins, error) {

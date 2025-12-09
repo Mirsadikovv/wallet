@@ -100,8 +100,12 @@ func Exec(env *Env) {
 	// Setup routes
 	setupRoutes(router, db, env)
 
-	// Swagger - отдаем статические файлы из docs/swagger
-	router.Static("/swagger", "./docs/swagger")
+	// Swagger UI - постоянные файлы из static/swagger
+	router.Static("/swagger", "./static/swagger")
+
+	// Swagger JSON - временные файлы из docs/swagger (используем /swagger-docs чтобы не конфликтовать с /api/v1)
+	router.StaticFile("/swagger.json", "./docs/swagger/swagger.json")
+	router.StaticFile("/swagger.yaml", "./docs/swagger/swagger.yaml")
 
 	// Start server
 	router.Run(fmt.Sprintf(":%d", env.HTTP_Port))
