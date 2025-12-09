@@ -256,3 +256,89 @@ func (h *WalletHandler) DeleteWallet(c *gin.Context) {
 		Message: "Кошелек успешно удален",
 	})
 }
+
+// GetTransactions получает историю транзакций кошелька
+// @Summary Получить историю транзакций
+// @Description Возвращает список транзакций кошелька из блокчейна TON
+// @Tags wallet
+// @Accept json
+// @Produce json
+// @Param id path int true "ID кошелька"
+// @Param limit query int false "Количество транзакций (по умолчанию 10, макс 100)" default(10)
+// @Success 200 {object} dto.GetTransactionsResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/v1/wallet/{id}/transactions [get]
+func (h *WalletHandler) GetTransactions(c *gin.Context) {
+	walletIDStr := c.Param("id")
+	walletID, err := strconv.ParseInt(walletIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error:   "invalid_wallet_id",
+			Message: "ID кошелька должен быть числом",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	var req dto.GetTransactionsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error:   "invalid_request",
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// Устанавливаем значение по умолчанию
+	limit := 10
+	if req.Limit > 0 {
+		limit = req.Limit
+	}
+
+	wallet, err := h.walletService.GetWalletByID(c.Request.Context(), walletID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{
+			Error:   "wallet_not_found",
+			Message: err.Error(),
+			Code:    http.StatusNotFound,
+		})
+		return
+	}
+
+	transactions, err := h.walletService.GetTransactions(c.Request.Context(), walletID, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Error:   "failed_to_get_transactions",
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// Преобразуем в DTO
+	txDTOs := make([]*dto.TransactionDTO, 0, len(transactions))
+	for _, tx := range transactions {
+		txDTOs = append(txDTOs, &dto.TransactionDTO{
+			Hash:      tx.Hash,
+			Lt:        tx.Lt,
+			Timestamp: tx.Timestamp,
+			Type:      tx.Type,
+			Amount:    tx.Amount,
+			Fee:       tx.Fee,
+			From:      tx.From,
+			To:        tx.To,
+			Comment:   tx.Comment,
+			Success:   tx.Success,
+		})
+	}
+
+	c.JSON(http.StatusOK, dto.GetTransactionsResponse{
+		WalletID:     wallet.ID,
+		Address:      wallet.Address,
+		Transactions: txDTOs,
+		Total:        len(txDTOs),
+	})
+}

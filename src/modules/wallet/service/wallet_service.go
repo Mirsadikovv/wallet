@@ -157,3 +157,24 @@ func (s *WalletService) DeleteWallet(ctx context.Context, walletID int64) error 
 
 	return nil
 }
+
+func (s *WalletService) GetTransactions(ctx context.Context, walletID int64, limit int) ([]*TransactionInfo, error) {
+	wallet, err := s.GetWalletByID(ctx, walletID)
+	if err != nil {
+		return nil, err
+	}
+
+	seedPhrase, err := DecryptSeed(wallet.EncryptedSeed, s.encryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt seed: %w", err)
+	}
+
+	seedWords := strings.Split(seedPhrase, " ")
+
+	transactions, err := s.tonService.GetTransactions(ctx, seedWords, wallet.WalletType, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transactions: %w", err)
+	}
+
+	return transactions, nil
+}

@@ -55,3 +55,27 @@ type SuccessResponse struct {
 	Data    interface{} `json:"data,omitempty"`
 	Message string      `json:"message,omitempty"`
 }
+
+type GetTransactionsRequest struct {
+	Limit int `form:"limit" json:"limit" binding:"omitempty,min=1,max=100"`
+}
+
+type TransactionDTO struct {
+	Hash      string `json:"hash"`
+	Lt        uint64 `json:"lt"`
+	Timestamp int64  `json:"timestamp"`
+	Type      string `json:"type"`
+	Amount    string `json:"amount"`
+	Fee       string `json:"fee"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	Comment   string `json:"comment,omitempty"`
+	Success   bool   `json:"success"`
+}
+
+type GetTransactionsResponse struct {
+	WalletID     int64             `json:"wallet_id"`
+	Address      string            `json:"address"`
+	Transactions []*TransactionDTO `json:"transactions"`
+	Total        int               `json:"total"`
+}

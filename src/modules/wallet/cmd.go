@@ -37,6 +37,9 @@ func Cmd(router *gin.Engine, db *bun.DB, network string, encryptionKey string) {
 		// Получить баланс кошелька
 		walletGroup.GET("/:id/balance", walletHandler.GetBalance)
 
+		// Получить историю транзакций кошелька
+		walletGroup.GET("/:id/transactions", walletHandler.GetTransactions)
+
 		// Список кошельков пользователя
 		walletGroup.GET("/list", walletHandler.ListUserWallets)
 
