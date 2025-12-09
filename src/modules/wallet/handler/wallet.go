@@ -9,12 +9,10 @@ import (
 	"wallet_test/src/modules/wallet/service"
 )
 
-// WalletHandler обработчик для работы с кошельками
 type WalletHandler struct {
 	walletService *service.WalletService
 }
 
-// NewWalletHandler создает новый обработчик
 func NewWalletHandler(walletService *service.WalletService) *WalletHandler {
 	return &WalletHandler{
 		walletService: walletService,
@@ -87,7 +85,6 @@ func (h *WalletHandler) GetWalletInfo(c *gin.Context) {
 		return
 	}
 
-	// Получаем кошелек из БД
 	wallet, err := h.walletService.GetWalletByID(c.Request.Context(), walletID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, dto.ErrorResponse{
@@ -98,7 +95,6 @@ func (h *WalletHandler) GetWalletInfo(c *gin.Context) {
 		return
 	}
 
-	// Получаем детальную информацию из блокчейна
 	info, err := h.walletService.GetWalletInfo(c.Request.Context(), walletID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{

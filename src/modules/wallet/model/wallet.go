@@ -33,22 +33,18 @@ type User struct {
 	Wallets   []*Wallet `bun:"rel:has-many,join:id=user_id" json:"wallets,omitempty"`
 }
 
-// Transaction история транзакций
 type Transaction struct {
 	bun.BaseModel `bun:"table:transactions,alias:t"`
-
-	ID          int64     `bun:"id,pk,autoincrement" json:"id"`
-	WalletID    int64     `bun:"wallet_id,notnull" json:"wallet_id"`
-	TxHash      string    `bun:"tx_hash,unique,notnull" json:"tx_hash"`
-	FromAddress string    `bun:"from_address,notnull" json:"from_address"`
-	ToAddress   string    `bun:"to_address,notnull" json:"to_address"`
-	Amount      string    `bun:"amount,notnull" json:"amount"` // храним как string для точности
-	Fee         string    `bun:"fee" json:"fee"`
-	Status      string    `bun:"status,notnull" json:"status"` // pending, confirmed, failed
-	BlockNumber int64     `bun:"block_number" json:"block_number"`
-	Comment     string    `bun:"comment" json:"comment"`
-	CreatedAt   time.Time `bun:"created_at,nullzero,notnull,default:current_timestamp" json:"created_at"`
-
-	// Relations
-	Wallet *Wallet `bun:"rel:belongs-to,join:wallet_id=id" json:"wallet,omitempty"`
+	ID            int64     `bun:"id,pk,autoincrement" json:"id"`
+	WalletID      int64     `bun:"wallet_id,notnull" json:"wallet_id"`
+	TxHash        string    `bun:"tx_hash,unique,notnull" json:"tx_hash"`
+	FromAddress   string    `bun:"from_address,notnull" json:"from_address"`
+	ToAddress     string    `bun:"to_address,notnull" json:"to_address"`
+	Amount        string    `bun:"amount,notnull" json:"amount"` // храним как string для точности
+	Fee           string    `bun:"fee" json:"fee"`
+	Status        string    `bun:"status,notnull" json:"status"` // pending, confirmed, failed
+	BlockNumber   int64     `bun:"block_number" json:"block_number"`
+	Comment       string    `bun:"comment" json:"comment"`
+	CreatedAt     time.Time `bun:"created_at,nullzero,notnull,default:current_timestamp" json:"created_at"`
+	Wallet        *Wallet   `bun:"rel:belongs-to,join:wallet_id=id" json:"wallet,omitempty"`
 }
