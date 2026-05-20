@@ -19,9 +19,10 @@ import (
 )
 
 type TONService struct {
-	client *liteclient.ConnectionPool
-	api    ton.APIClientWrapped
-	config *liteclient.GlobalConfig
+	client          *liteclient.ConnectionPool
+	api             ton.APIClientWrapped
+	config          *liteclient.GlobalConfig
+	networkGlobalID int32
 }
 
 func NewTONService(network string) (*TONService, error) {
@@ -45,10 +46,16 @@ func NewTONService(network string) (*TONService, error) {
 	api := ton.NewAPIClient(client, ton.ProofCheckPolicyFast).WithRetry()
 	api.SetTrustedBlockFromConfig(cfg)
 
+	networkGlobalID := int32(wallet.MainnetGlobalID)
+	if network == "testnet" {
+		networkGlobalID = int32(wallet.TestnetGlobalID)
+	}
+
 	return &TONService{
-		client: client,
-		api:    api,
-		config: cfg,
+		client:          client,
+		api:             api,
+		config:          cfg,
+		networkGlobalID: networkGlobalID,
 	}, nil
 }
 
@@ -59,7 +66,7 @@ func (s *TONService) GenerateWallet() []string {
 
 func (s *TONService) CreateWalletFromSeed(seedWords []string, walletType string) (*WalletInfo, error) {
 	config := wallet.ConfigV5R1Final{
-		NetworkGlobalID: wallet.MainnetGlobalID,
+		NetworkGlobalID: s.networkGlobalID,
 	}
 
 	w, err := wallet.FromSeed(s.api, seedWords, config)
@@ -78,7 +85,7 @@ func (s *TONService) CreateWalletFromSeed(seedWords []string, walletType string)
 
 func (s *TONService) GetBalance(ctx context.Context, seedWords []string, walletType string) (string, error) {
 	config := wallet.ConfigV5R1Final{
-		NetworkGlobalID: wallet.MainnetGlobalID,
+		NetworkGlobalID: s.networkGlobalID,
 	}
 
 	w, err := wallet.FromSeed(s.api, seedWords, config)
@@ -101,7 +108,7 @@ func (s *TONService) GetBalance(ctx context.Context, seedWords []string, walletT
 
 func (s *TONService) GetWalletInfo(ctx context.Context, seedWords []string, walletType string) (*WalletDetailInfo, error) {
 	config := wallet.ConfigV5R1Final{
-		NetworkGlobalID: wallet.MainnetGlobalID,
+		NetworkGlobalID: s.networkGlobalID,
 	}
 
 	w, err := wallet.FromSeed(s.api, seedWords, config)
@@ -198,18 +205,18 @@ type TransactionInfo struct {
 	Hash      string `json:"hash"`
 	Lt        uint64 `json:"lt"`
 	Timestamp int64  `json:"timestamp"`
-	Type      string `json:"type"`      // "in" или "out"
-	Amount    string `json:"amount"`    // в TON
-	Fee       string `json:"fee"`       // в TON
-	From      string `json:"from"`      // адрес отправителя
-	To        string `json:"to"`        // адрес получателя
-	Comment   string `json:"comment"`   // комментарий к транзакции
-	Success   bool   `json:"success"`   // успешна ли транзакция
+	Type      string `json:"type"`    // "in" или "out"
+	Amount    string `json:"amount"`  // в TON
+	Fee       string `json:"fee"`     // в TON
+	From      string `json:"from"`    // адрес отправителя
+	To        string `json:"to"`      // адрес получателя
+	Comment   string `json:"comment"` // комментарий к транзакции
+	Success   bool   `json:"success"` // успешна ли транзакция
 }
 
 func (s *TONService) GetTransactions(ctx context.Context, seedWords []string, walletType string, limit int) ([]*TransactionInfo, error) {
 	config := wallet.ConfigV5R1Final{
-		NetworkGlobalID: wallet.MainnetGlobalID,
+		NetworkGlobalID: s.networkGlobalID,
 	}
 
 	w, err := wallet.FromSeed(s.api, seedWords, config)
@@ -311,7 +318,7 @@ type SendTransactionResult struct {
 
 func (s *TONService) SendTransaction(ctx context.Context, seedWords []string, walletType, recipient, amount, comment string) (*SendTransactionResult, error) {
 	config := wallet.ConfigV5R1Final{
-		NetworkGlobalID: wallet.MainnetGlobalID,
+		NetworkGlobalID: s.networkGlobalID,
 	}
 
 	w, err := wallet.FromSeed(s.api, seedWords, config)
