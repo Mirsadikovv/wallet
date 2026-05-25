@@ -2,8 +2,8 @@
 
 # Переменные
 APP_NAME=wallet_server
-GO_FILES=$(shell find . -name "*.go" -type f)
-MAIN_FILE=main.go
+BACKEND=backend
+GO_FILES=$(shell find $(BACKEND)/ -name "*.go" -type f)
 
 # Цвета для вывода
 GREEN=\033[0;32m
@@ -17,21 +17,21 @@ help: ## Показать эту справку
 
 build: ## Собрать приложение
 	@echo "$(GREEN)Building $(APP_NAME)...$(NC)"
-	go build -o $(APP_NAME) $(MAIN_FILE)
+	go build -C $(BACKEND) -o ../$(APP_NAME) .
 	@echo "$(GREEN)✓ Build complete: ./$(APP_NAME)$(NC)"
 
 run: ## Запустить приложение
 	@echo "$(GREEN)Starting $(APP_NAME)...$(NC)"
-	go run $(MAIN_FILE)
+	go run -C $(BACKEND) .
 
 dev: ## Запустить в режиме разработки (с автоперезагрузкой)
 	@echo "$(GREEN)Starting in dev mode...$(NC)"
 	@which air > /dev/null || (echo "$(RED)air not installed. Run: go install github.com/cosmtrek/air@latest$(NC)" && exit 1)
-	air
+	cd $(BACKEND) && air
 
 test: ## Запустить тесты
 	@echo "$(GREEN)Running tests...$(NC)"
-	go test -v -race -coverprofile=coverage.out ./...
+	go test -C $(BACKEND) -v -race -coverprofile=../coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "$(GREEN)✓ Coverage report: coverage.html$(NC)"
 
@@ -44,18 +44,18 @@ clean: ## Очистить сборочные файлы
 
 install: ## Установить зависимости
 	@echo "$(GREEN)Installing dependencies...$(NC)"
-	go mod download
-	go mod tidy
+	go mod download -C $(BACKEND)
+	go mod tidy -C $(BACKEND)
 	@echo "$(GREEN)✓ Dependencies installed$(NC)"
 
 lint: ## Запустить линтер
 	@echo "$(GREEN)Running linter...$(NC)"
 	@which golangci-lint > /dev/null || (echo "$(RED)golangci-lint not installed$(NC)" && exit 1)
-	golangci-lint run ./...
+	golangci-lint run ./$(BACKEND)/...
 
 fmt: ## Форматировать код
 	@echo "$(GREEN)Formatting code...$(NC)"
-	go fmt ./...
+	go fmt -C $(BACKEND) ./...
 	@echo "$(GREEN)✓ Code formatted$(NC)"
 
 # База данных
@@ -77,7 +77,7 @@ migrate: ## Запустить миграции (выполняется авто
 # Docker
 docker-build: ## Собрать Docker образ
 	@echo "$(GREEN)Building Docker image...$(NC)"
-	docker build -t wallet_test:latest .
+	docker build -t wallet:latest .
 	@echo "$(GREEN)✓ Docker image built$(NC)"
 
 docker-up: ## Запустить через Docker Compose
@@ -97,7 +97,7 @@ docker-logs: ## Показать логи Docker контейнеров
 swagger: ## Сгенерировать Swagger документацию
 	@echo "$(GREEN)Generating Swagger docs...$(NC)"
 	@which swag > /dev/null || (echo "$(RED)swag not installed. Run: go install github.com/swaggo/swag/cmd/swag@latest$(NC)" && exit 1)
-	swag init -g src/main.go --output docs/swagger
+	cd $(BACKEND) && swag init -g src/main.go --output ../docs/swagger
 	@echo "$(GREEN)✓ Swagger docs generated in docs/swagger/$(NC)"
 
 # Тестирование API
@@ -121,13 +121,8 @@ info: ## Показать информацию о проекте
 	@echo "$(GREEN)Project: TON Wallet API$(NC)"
 	@echo "  Go version:    $$(go version | awk '{print $$3}')"
 	@echo "  Binary:        $(APP_NAME)"
-	@echo "  Main file:     $(MAIN_FILE)"
+	@echo "  Backend dir:   $(BACKEND)/"
 	@echo "  Go files:      $$(echo $(GO_FILES) | wc -w)"
-
-# Запуск примеров
-example-wallet: ## Запустить пример работы с TON кошельком
-	@echo "$(GREEN)Running wallet example...$(NC)"
-	cd wallet && go run main.go
 
 # Установка окружения
 setup: install db-create ## Полная настройка окружения

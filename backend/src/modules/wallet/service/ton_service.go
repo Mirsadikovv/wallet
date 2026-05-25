@@ -2,12 +2,10 @@ package service
 
 import (
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
+	"crypto/ed25519"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -28,7 +26,7 @@ type TONService struct {
 func NewTONService(network string) (*TONService, error) {
 	client := liteclient.NewConnectionPool()
 
-	configURL := "https://ton.org/global-config.json" // mainnet
+	configURL := "https://ton.org/global-config.json"
 	if network == "testnet" {
 		configURL = "https://ton.org/testnet-global.config.json"
 	}
@@ -60,35 +58,38 @@ func NewTONService(network string) (*TONService, error) {
 }
 
 func (s *TONService) GenerateWallet() []string {
-	seed := wallet.NewSeed()
-	return seed
+	return wallet.NewSeed()
+}
+
+func (s *TONService) walletFromSeed(seedWords []string, walletType string) (*wallet.Wallet, error) {
+	switch walletType {
+	case "V4R2":
+		return wallet.FromSeed(s.api, seedWords, wallet.V4R2)
+	default:
+		return wallet.FromSeed(s.api, seedWords, wallet.ConfigV5R1Final{
+			NetworkGlobalID: s.networkGlobalID,
+		})
+	}
 }
 
 func (s *TONService) CreateWalletFromSeed(seedWords []string, walletType string) (*WalletInfo, error) {
-	config := wallet.ConfigV5R1Final{
-		NetworkGlobalID: s.networkGlobalID,
-	}
-
-	w, err := wallet.FromSeed(s.api, seedWords, config)
+	w, err := s.walletFromSeed(seedWords, walletType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create wallet from seed: %w", err)
 	}
 
-	address := w.WalletAddress()
+	pubKey := ed25519.PublicKey(w.PrivateKey().Public().(ed25519.PublicKey))
 
 	return &WalletInfo{
-		Address:    address.String(),
+		Address:    w.WalletAddress().String(),
+		PublicKey:  hex.EncodeToString(pubKey),
 		SeedPhrase: strings.Join(seedWords, " "),
 		WalletType: walletType,
 	}, nil
 }
 
 func (s *TONService) GetBalance(ctx context.Context, seedWords []string, walletType string) (string, error) {
-	config := wallet.ConfigV5R1Final{
-		NetworkGlobalID: s.networkGlobalID,
-	}
-
-	w, err := wallet.FromSeed(s.api, seedWords, config)
+	w, err := s.walletFromSeed(seedWords, walletType)
 	if err != nil {
 		return "", fmt.Errorf("failed to create wallet: %w", err)
 	}
@@ -106,17 +107,11 @@ func (s *TONService) GetBalance(ctx context.Context, seedWords []string, walletT
 	return balance.String(), nil
 }
 
-func (s *TONService) GetWalletInfo(ctx context.Context, seedWords []string, walletType string) (*WalletDetailInfo, error) {
-	config := wallet.ConfigV5R1Final{
-		NetworkGlobalID: s.networkGlobalID,
-	}
-
-	w, err := wallet.FromSeed(s.api, seedWords, config)
+func (s *TONService) GetWalletInfo(ctx context.Context, seedWords []string, walletType string) (*TONWalletInfo, error) {
+	w, err := s.walletFromSeed(seedWords, walletType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create wallet: %w", err)
 	}
-
-	address := w.WalletAddress()
 
 	block, err := s.api.CurrentMasterchainInfo(ctx)
 	if err != nil {
@@ -128,138 +123,51 @@ func (s *TONService) GetWalletInfo(ctx context.Context, seedWords []string, wall
 		return nil, fmt.Errorf("failed to get balance: %w", err)
 	}
 
-	var seqno uint32 = 0
-
-	return &WalletDetailInfo{
-		Address:    address.String(),
+	return &TONWalletInfo{
+		Address:    w.WalletAddress().String(),
 		Balance:    balance.String(),
 		WalletType: walletType,
-		Seqno:      int64(seqno),
+		Seqno:      0,
 	}, nil
 }
 
-func EncryptSeed(seedPhrase, encryptionKey string) (string, error) {
-	block, err := aes.NewCipher([]byte(encryptionKey))
-	if err != nil {
-		return "", err
-	}
-
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", err
-	}
-
-	ciphertext := gcm.Seal(nonce, nonce, []byte(seedPhrase), nil)
-	return base64.StdEncoding.EncodeToString(ciphertext), nil
-}
-
-func DecryptSeed(encryptedSeed, encryptionKey string) (string, error) {
-	data, err := base64.StdEncoding.DecodeString(encryptedSeed)
-	if err != nil {
-		return "", err
-	}
-
-	block, err := aes.NewCipher([]byte(encryptionKey))
-	if err != nil {
-		return "", err
-	}
-
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-
-	nonceSize := gcm.NonceSize()
-	if len(data) < nonceSize {
-		return "", fmt.Errorf("ciphertext too short")
-	}
-
-	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
-	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return "", err
-	}
-
-	return string(plaintext), nil
-}
-
-type WalletInfo struct {
-	Address    string `json:"address"`
-	SeedPhrase string `json:"seed_phrase"`
-	WalletType string `json:"wallet_type"`
-}
-
-type WalletDetailInfo struct {
-	Address    string `json:"address"`
-	Balance    string `json:"balance"`
-	WalletType string `json:"wallet_type"`
-	Seqno      int64  `json:"seqno"`
-}
-
-type TransactionInfo struct {
-	Hash      string `json:"hash"`
-	Lt        uint64 `json:"lt"`
-	Timestamp int64  `json:"timestamp"`
-	Type      string `json:"type"`    // "in" или "out"
-	Amount    string `json:"amount"`  // в TON
-	Fee       string `json:"fee"`     // в TON
-	From      string `json:"from"`    // адрес отправителя
-	To        string `json:"to"`      // адрес получателя
-	Comment   string `json:"comment"` // комментарий к транзакции
-	Success   bool   `json:"success"` // успешна ли транзакция
-}
-
 func (s *TONService) GetTransactions(ctx context.Context, seedWords []string, walletType string, limit int) ([]*TransactionInfo, error) {
-	config := wallet.ConfigV5R1Final{
-		NetworkGlobalID: s.networkGlobalID,
-	}
-
-	w, err := wallet.FromSeed(s.api, seedWords, config)
+	w, err := s.walletFromSeed(seedWords, walletType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create wallet: %w", err)
 	}
 
-	address := w.WalletAddress()
+	addr := w.WalletAddress()
 
-	// Получаем список транзакций (lt=0, hash=nil означает "с последней транзакции")
-	txList, err := s.api.ListTransactions(ctx, address, uint32(limit), 0, nil)
+	txList, err := s.api.ListTransactions(ctx, addr, uint32(limit), 0, nil)
 	if err != nil {
-		// Если транзакций нет, возвращаем пустой массив вместо ошибки
 		if strings.Contains(err.Error(), "no transactions were found") {
 			return []*TransactionInfo{}, nil
 		}
 		return nil, fmt.Errorf("failed to get transactions: %w", err)
 	}
 
-	var transactions []*TransactionInfo
+	transactions := make([]*TransactionInfo, 0, len(txList))
 	for _, tx := range txList {
 		txInfo := &TransactionInfo{
 			Hash:      base64.StdEncoding.EncodeToString(tx.Hash),
 			Lt:        tx.LT,
 			Timestamp: int64(tx.Now),
-			Success:   true, // По умолчанию считаем успешной
+			Success:   true,
 		}
 
-		// Обрабатываем комиссию
 		if tx.TotalFees.Coins.Nano() != nil {
 			txInfo.Fee = tx.TotalFees.Coins.TON()
 		}
 
-		// Обрабатываем входящие сообщения
 		if tx.IO.In != nil && tx.IO.In.MsgType == tlb.MsgTypeInternal {
 			intMsg := tx.IO.In.AsInternal()
 			if intMsg != nil {
 				txInfo.Type = "in"
 				txInfo.Amount = intMsg.Amount.TON()
 				txInfo.From = intMsg.SrcAddr.String()
-				txInfo.To = address.String()
+				txInfo.To = addr.String()
 
-				// Пытаемся извлечь комментарий
 				if intMsg.Body != nil {
 					payload := intMsg.Body.BeginParse()
 					if op, err := payload.LoadUInt(32); err == nil && op == 0 {
@@ -271,7 +179,6 @@ func (s *TONService) GetTransactions(ctx context.Context, seedWords []string, wa
 			}
 		}
 
-		// Обрабатываем исходящие сообщения
 		if tx.IO.Out != nil {
 			list, err := tx.IO.Out.ToSlice()
 			if err == nil {
@@ -281,10 +188,9 @@ func (s *TONService) GetTransactions(ctx context.Context, seedWords []string, wa
 						if intMsg != nil {
 							txInfo.Type = "out"
 							txInfo.Amount = intMsg.Amount.TON()
-							txInfo.From = address.String()
+							txInfo.From = addr.String()
 							txInfo.To = intMsg.DstAddr.String()
 
-							// Пытаемся извлечь комментарий
 							if intMsg.Body != nil {
 								payload := intMsg.Body.BeginParse()
 								if op, err := payload.LoadUInt(32); err == nil && op == 0 {
@@ -293,7 +199,7 @@ func (s *TONService) GetTransactions(ctx context.Context, seedWords []string, wa
 									}
 								}
 							}
-							break // Берем только первое исходящее сообщение
+							break
 						}
 					}
 				}
@@ -306,39 +212,22 @@ func (s *TONService) GetTransactions(ctx context.Context, seedWords []string, wa
 	return transactions, nil
 }
 
-type SendTransactionResult struct {
-	Hash      string `json:"hash"`
-	Lt        uint64 `json:"lt"`
-	Address   string `json:"address"`
-	Amount    string `json:"amount"`
-	Fee       string `json:"fee"`
-	Recipient string `json:"recipient"`
-	Comment   string `json:"comment,omitempty"`
-}
-
 func (s *TONService) SendTransaction(ctx context.Context, seedWords []string, walletType, recipient, amount, comment string) (*SendTransactionResult, error) {
-	config := wallet.ConfigV5R1Final{
-		NetworkGlobalID: s.networkGlobalID,
-	}
-
-	w, err := wallet.FromSeed(s.api, seedWords, config)
+	w, err := s.walletFromSeed(seedWords, walletType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create wallet: %w", err)
 	}
 
-	// Парсим адрес получателя
 	addr, err := address.ParseAddr(recipient)
 	if err != nil {
 		return nil, fmt.Errorf("invalid recipient address: %w", err)
 	}
 
-	// Конвертируем сумму в TON Coins
 	coins, err := tlb.FromTON(amount)
 	if err != nil {
 		return nil, fmt.Errorf("invalid amount: %w", err)
 	}
 
-	// Создаем сообщение с комментарием (если есть)
 	var body *cell.Cell
 	if comment != "" {
 		body, err = wallet.CreateCommentCell(comment)
@@ -347,9 +236,8 @@ func (s *TONService) SendTransaction(ctx context.Context, seedWords []string, wa
 		}
 	}
 
-	// Отправляем транзакцию
-	tx, block, err := w.SendWaitTransaction(ctx, &wallet.Message{
-		Mode: 3, // pay fees separately, ignore errors
+	tx, _, err := w.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: 3,
 		InternalMessage: &tlb.InternalMessage{
 			IHRDisabled: true,
 			Bounce:      addr.IsBounceable(),
@@ -362,14 +250,10 @@ func (s *TONService) SendTransaction(ctx context.Context, seedWords []string, wa
 		return nil, fmt.Errorf("failed to send transaction: %w", err)
 	}
 
-	// Вычисляем комиссию
 	fee := "0"
 	if tx.TotalFees.Coins.Nano() != nil {
 		fee = tx.TotalFees.Coins.TON()
 	}
-
-	// Используем block для избежания "declared and not used"
-	_ = block
 
 	return &SendTransactionResult{
 		Hash:      base64.StdEncoding.EncodeToString(tx.Hash),
@@ -380,8 +264,4 @@ func (s *TONService) SendTransaction(ctx context.Context, seedWords []string, wa
 		Recipient: recipient,
 		Comment:   comment,
 	}, nil
-}
-
-func TONAmount(amount string) (tlb.Coins, error) {
-	return tlb.FromTON(amount)
 }
