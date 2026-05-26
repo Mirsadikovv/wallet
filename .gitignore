@@ -1,1 +1,32 @@
-/docs
+# Бинарники
+wallet_server
+*.exe
+
+# Окружение
+.env
+backend/.env
+
+# Тесты / покрытие
+coverage.out
+coverage.html
+
+# Swagger (генерируется командой make be.swagger)
+backend/docs/swagger/
+docs/
+
+# Frontend сборка
+frontend/dist/
+frontend/node_modules/
+
+# Go
+backend/vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -126,3 +126,93 @@ VITE_EIMZO_*=...
 - `idoctor_front/Dockerfile` — для **фронтенда**
 - `idoctor_bot/` не имеет отдельного Dockerfile (запускается через общий compose)
 - `.github/` — только CI/CD workflows, ничего лишнего
+
+---
+
+## Чистота репозитория
+
+### Что никогда не коммитится
+
+| Тип | Примеры | Причина |
+|-----|---------|---------|
+| Бинарники | `wallet_server`, `*.exe` | Генерируются при сборке |
+| Секреты | `.env`, `*.key`, `*.pem` | Утечка credentials |
+| Сгенерированный код | `docs/swagger/`, `dist/` | Воспроизводится командой |
+| Артефакты тестов | `coverage.out`, `coverage.html` | Генерируются при тесте |
+| Кэш и IDE | `.idea/`, `.vscode/`, `.DS_Store` | Локальные настройки |
+
+Все эти паттерны обязательно присутствуют в `.gitignore`.
+
+### Сгенерированные файлы живут внутри своего модуля
+
+```
+// ❌ swagger сгенерирован вне Go-модуля
+wallet/
+├── docs/swagger/   ← снаружи backend/, не входит в module "wallet"
+└── backend/
+    └── go.mod      ← module wallet
+
+// ✅ swagger внутри модуля
+wallet/
+└── backend/
+    ├── docs/swagger/  ← внутри module "wallet", можно импортировать
+    └── go.mod
+```
+
+### Статичные файлы заменяются библиотеками
+
+Если библиотека умеет раздавать UI (swagger, prometheus, pprof) — статичный HTML удаляется:
+
+```
+// ❌ держать оба варианта
+backend/static/swagger/index.html   ← ручной HTML
++ echo-swagger в go.mod              ← библиотека
+
+// ✅ только один источник
+backend/
+└── (нет static/) ← echo-swagger раздаёт UI сам
+```
+
+### tools.go — единственное место для якорных зависимостей
+
+Пакеты, которые нужны в `go.mod` но не импортируются в рабочем коде (запланированные фичи, инструменты), держатся через `tools.go` с build-тегом:
+
+```go
+//go:build tools
+
+package tools
+
+import (
+    _ "github.com/golang-jwt/jwt/v5"  // запланировано: auth
+    _ "github.com/redis/go-redis/v9"  // запланировано: кеш
+)
+```
+
+Без этого файла `go mod tidy` удалит эти пакеты из `go.mod`.
+
+### .env.example обязателен
+
+Рядом с каждым `.env` должен лежать `.env.example` с заглушками:
+
+```
+# ✅ .env.example в репо
+POSTGRES_HOST=localhost
+POSTGRES_USER=your_user
+POSTGRES_PASSWORD=your_password
+POSTGRES_DB=your_db
+
+# ❌ .env в репо — только локально
+```
+
+### Проверка перед коммитом
+
+```bash
+# убедиться что бинарник не попадёт в git
+git status | grep wallet_server  # должно быть пусто
+
+# проверить .env
+git status | grep "\.env$"       # должно быть пусто
+
+# проверить сгенерированные файлы
+git status | grep "docs/swagger" # должно быть пусто (если в .gitignore)
+```

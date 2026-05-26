@@ -16,6 +16,79 @@
 
 ---
 
+## Чистота архитектуры
+
+### Слои не пересекаются
+
+Каждый слой знает только о нижележащем. Зависимости строго односторонние:
+
+```
+handler → service (через интерфейс) → model
+dto ← handler, service
+model ← service (только)
+```
+
+```go
+// ❌ handler импортирует model напрямую
+import wallet_model "wallet/src/modules/wallet/model"
+func (h *handler) Create(c echo.Context) error {
+    var m wallet_model.Wallet  // модель в хендлере
+}
+
+// ✅ handler работает только с dto и вызывает service
+func (h *handler) Create(c echo.Context) error {
+    var req dto.CreateRequest
+    c.Bind(&req)
+    id, err := h.service.Create(ctx, &req)
+}
+```
+
+### Модули изолированы друг от друга
+
+Один модуль не импортирует внутренности другого. Взаимодействие только через общий `common/`:
+
+```go
+// ❌ модуль account импортирует модель wallet
+import wallet_model "wallet/src/modules/wallet/model"
+
+// ✅ если нужны общие типы — вынести в common/
+import "wallet/src/common/types"
+```
+
+### Бизнес-логика только в service
+
+```go
+// ❌ логика в handler
+func (h *handler) Create(c echo.Context) error {
+    if req.Amount > 1000 {  // бизнес-правило
+        return c.JSON(400, ...)
+    }
+}
+
+// ✅ handler — только транспортный слой
+func (h *handler) Create(c echo.Context) error {
+    var req dto.CreateRequest
+    c.Bind(&req)
+    id, err := h.service.Create(ctx, &req)
+    // ...
+}
+```
+
+### Один файл — одна ответственность
+
+| Файл | Что содержит | Что НЕ содержит |
+|------|-------------|-----------------|
+| `*_handler.go` | HTTP bind, validate, вызов service, JSON-ответ | бизнес-логика, SQL |
+| `*_service.go` | бизнес-логика, интерфейс | HTTP-зависимости, echo.Context |
+| `*_dto.go` | структуры запроса/ответа | GORM теги, методы бизнес-логики |
+| `*_model.go` | GORM-структуры | DTO поля, HTTP-теги |
+
+### Нет циклических зависимостей
+
+Перед добавлением импорта проверяй: не создаёт ли он цикл. Если `A` импортирует `B`, то `B` не должен импортировать `A`.
+
+---
+
 ## Структура
 
 ```
