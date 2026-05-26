@@ -8,10 +8,12 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	echoswagger "github.com/swaggo/echo-swagger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	_ "wallet/docs/swagger" // swagger generated docs
 	wallet "wallet/src/modules/wallet"
 	wallet_model "wallet/src/modules/wallet/model"
 )
@@ -95,9 +97,7 @@ func Exec(env *Env) {
 		return c.JSON(200, map[string]string{"status": "ok"})
 	})
 
-	e.Static("/swagger", "./static/swagger")
-	e.File("/swagger.json", "./docs/swagger/swagger.json")
-	e.File("/swagger.yaml", "./docs/swagger/swagger.yaml")
+	e.GET("/swagger/*", echoswagger.WrapHandler)
 
 	if err := wallet.Cmd(e, db, env.TON_Network, env.ENCRYPTION_KEY); err != nil {
 		log.Fatalf("Failed to initialize wallet module: %v", err)

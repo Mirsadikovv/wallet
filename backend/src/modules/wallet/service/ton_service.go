@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -149,11 +150,16 @@ func (s *TONService) GetTransactions(ctx context.Context, seedWords []string, wa
 
 	transactions := make([]*TransactionInfo, 0, len(txList))
 	for _, tx := range txList {
+		success := true
+		if desc, ok := tx.Description.(tlb.TransactionDescriptionOrdinary); ok {
+			success = !desc.Aborted
+		}
+
 		txInfo := &TransactionInfo{
 			Hash:      base64.StdEncoding.EncodeToString(tx.Hash),
 			Lt:        tx.LT,
 			Timestamp: int64(tx.Now),
-			Success:   true,
+			Success:   success,
 		}
 
 		if tx.TotalFees.Coins.Nano() != nil {
@@ -165,14 +171,17 @@ func (s *TONService) GetTransactions(ctx context.Context, seedWords []string, wa
 			if intMsg != nil {
 				txInfo.Type = "in"
 				txInfo.Amount = intMsg.Amount.TON()
-				txInfo.From = intMsg.SrcAddr.String()
+				if intMsg.SrcAddr != nil {
+					txInfo.From = intMsg.SrcAddr.String()
+				}
 				txInfo.To = addr.String()
 
 				if intMsg.Body != nil {
-					payload := intMsg.Body.BeginParse()
-					if op, err := payload.LoadUInt(32); err == nil && op == 0 {
-						if comment, err := payload.LoadStringSnake(); err == nil {
-							txInfo.Comment = comment
+					if payload, err := intMsg.Body.BeginParse(); err == nil {
+						if op, err := payload.LoadUInt(32); err == nil && op == 0 {
+							if comment, err := payload.LoadStringSnake(); err == nil {
+								txInfo.Comment = comment
+							}
 						}
 					}
 				}
@@ -182,26 +191,35 @@ func (s *TONService) GetTransactions(ctx context.Context, seedWords []string, wa
 		if tx.IO.Out != nil {
 			list, err := tx.IO.Out.ToSlice()
 			if err == nil {
+				totalNano := new(big.Int)
 				for _, msg := range list {
 					if msg.MsgType == tlb.MsgTypeInternal {
 						intMsg := msg.AsInternal()
 						if intMsg != nil {
-							txInfo.Type = "out"
-							txInfo.Amount = intMsg.Amount.TON()
-							txInfo.From = addr.String()
-							txInfo.To = intMsg.DstAddr.String()
-
-							if intMsg.Body != nil {
-								payload := intMsg.Body.BeginParse()
-								if op, err := payload.LoadUInt(32); err == nil && op == 0 {
-									if comment, err := payload.LoadStringSnake(); err == nil {
-										txInfo.Comment = comment
+							if txInfo.Type == "" {
+								txInfo.Type = "out"
+								txInfo.From = addr.String()
+								if intMsg.DstAddr != nil {
+									txInfo.To = intMsg.DstAddr.String()
+								}
+								if intMsg.Body != nil {
+									if payload, err := intMsg.Body.BeginParse(); err == nil {
+										if op, err := payload.LoadUInt(32); err == nil && op == 0 {
+											if comment, err := payload.LoadStringSnake(); err == nil {
+												txInfo.Comment = comment
+											}
+										}
 									}
 								}
 							}
-							break
+							if intMsg.Amount.Nano() != nil {
+								totalNano.Add(totalNano, intMsg.Amount.Nano())
+							}
 						}
 					}
+				}
+				if txInfo.Type == "out" {
+					txInfo.Amount = nanoToTON(totalNano)
 				}
 			}
 		}
@@ -210,6 +228,21 @@ func (s *TONService) GetTransactions(ctx context.Context, seedWords []string, wa
 	}
 
 	return transactions, nil
+}
+
+func nanoToTON(nano *big.Int) string {
+	if nano == nil || nano.Sign() == 0 {
+		return "0"
+	}
+	divisor := new(big.Int).Exp(big.NewInt(10), big.NewInt(9), nil)
+	quotient := new(big.Int)
+	remainder := new(big.Int)
+	quotient.DivMod(nano, divisor, remainder)
+	if remainder.Sign() == 0 {
+		return quotient.String()
+	}
+	fracStr := strings.TrimRight(fmt.Sprintf("%09d", remainder.Int64()), "0")
+	return quotient.String() + "." + fracStr
 }
 
 func (s *TONService) SendTransaction(ctx context.Context, seedWords []string, walletType, recipient, amount, comment string) (*SendTransactionResult, error) {

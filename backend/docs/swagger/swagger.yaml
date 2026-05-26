@@ -1,0 +1,596 @@
+basePath: /
+definitions:
+  AccountListResponse:
+    properties:
+      accounts:
+        items:
+          $ref: '#/definitions/AccountResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  AccountResponse:
+    properties:
+      balance:
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  CreateAccountRequest:
+    properties:
+      currency:
+        enum:
+        - USD
+        - EUR
+        - RUB
+        type: string
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      user_id:
+        type: integer
+    required:
+    - currency
+    - name
+    - user_id
+    type: object
+  CreateWalletRequest:
+    properties:
+      network:
+        enum:
+        - mainnet
+        - testnet
+        type: string
+      user_id:
+        type: integer
+      wallet_type:
+        enum:
+        - V5R1Final
+        - V4R2
+        type: string
+    required:
+    - network
+    - user_id
+    - wallet_type
+    type: object
+  CreateWalletResponse:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      network:
+        type: string
+      wallet_type:
+        type: string
+    type: object
+  ErrorResponse:
+    properties:
+      code:
+        type: integer
+      error:
+        type: string
+      message:
+        type: string
+    type: object
+  GetBalanceResponse:
+    properties:
+      address:
+        type: string
+      balance:
+        type: string
+    type: object
+  GetTransactionsResponse:
+    properties:
+      address:
+        type: string
+      total:
+        type: integer
+      transactions:
+        items:
+          $ref: '#/definitions/TransactionDTO'
+        type: array
+      wallet_id:
+        type: integer
+    type: object
+  GetWalletInfoResponse:
+    properties:
+      address:
+        type: string
+      balance:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      network:
+        type: string
+      seqno:
+        type: integer
+      wallet_type:
+        type: string
+    type: object
+  ListWalletsResponse:
+    properties:
+      total:
+        type: integer
+      wallets:
+        items:
+          $ref: '#/definitions/WalletSummary'
+        type: array
+    type: object
+  SendCoinsRequest:
+    properties:
+      amount:
+        type: string
+      comment:
+        type: string
+      recipient:
+        type: string
+    required:
+    - amount
+    - recipient
+    type: object
+  SendCoinsResponse:
+    properties:
+      address:
+        type: string
+      amount:
+        type: string
+      comment:
+        type: string
+      fee:
+        type: string
+      hash:
+        type: string
+      lt:
+        type: integer
+      recipient:
+        type: string
+    type: object
+  SuccessResponse:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  TransactionDTO:
+    properties:
+      amount:
+        type: string
+      comment:
+        type: string
+      fee:
+        type: string
+      from:
+        type: string
+      hash:
+        type: string
+      lt:
+        type: integer
+      success:
+        type: boolean
+      timestamp:
+        type: integer
+      to:
+        type: string
+      type:
+        type: string
+    type: object
+  UpdateAccountRequest:
+    properties:
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+    required:
+    - name
+    type: object
+  WalletSummary:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      network:
+        type: string
+      wallet_type:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: REST API for managing TON blockchain wallets
+  title: TON Wallet API
+  version: "1.0"
+paths:
+  /api/v1/account:
+    post:
+      consumes:
+      - application/json
+      description: Create new account for user
+      parameters:
+      - description: Account data
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/CreateAccountRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/AccountResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Create account
+      tags:
+      - account
+  /api/v1/account/{id}:
+    delete:
+      description: Soft deletes active account or restores deleted one
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Delete or restore account
+      tags:
+      - account
+    get:
+      description: Returns account details by ID
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/AccountResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get account by ID
+      tags:
+      - account
+    put:
+      consumes:
+      - application/json
+      description: Update account name by ID
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Account data
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/UpdateAccountRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/AccountResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Update account
+      tags:
+      - account
+  /api/v1/account/list:
+    get:
+      description: Returns all active accounts for a user
+      parameters:
+      - description: User ID
+        in: query
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/AccountListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: List user accounts
+      tags:
+      - account
+  /api/v1/wallet:
+    post:
+      consumes:
+      - application/json
+      description: Create new TON wallet for user
+      parameters:
+      - description: Wallet data
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/CreateWalletRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/CreateWalletResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Create wallet
+      tags:
+      - wallet
+  /api/v1/wallet/{id}:
+    delete:
+      description: Deactivates wallet (soft delete)
+      parameters:
+      - description: Wallet ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Delete wallet
+      tags:
+      - wallet
+    get:
+      description: Returns wallet details including blockchain balance
+      parameters:
+      - description: Wallet ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/GetWalletInfoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get wallet info
+      tags:
+      - wallet
+  /api/v1/wallet/{id}/balance:
+    get:
+      description: Returns current TON balance of the wallet
+      parameters:
+      - description: Wallet ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/GetBalanceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get wallet balance
+      tags:
+      - wallet
+  /api/v1/wallet/{id}/send:
+    post:
+      consumes:
+      - application/json
+      description: Sends TON from wallet to recipient address
+      parameters:
+      - description: Wallet ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Transaction data
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/SendCoinsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SendCoinsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Send TON coins
+      tags:
+      - wallet
+  /api/v1/wallet/{id}/transactions:
+    get:
+      description: Returns list of wallet transactions from TON blockchain
+      parameters:
+      - description: Wallet ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Number of transactions (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/GetTransactionsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get transaction history
+      tags:
+      - wallet
+  /api/v1/wallet/list:
+    get:
+      description: Returns all active wallets for a user
+      parameters:
+      - description: User ID
+        in: query
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ListWalletsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: List user wallets
+      tags:
+      - wallet
+securityDefinitions:
+  Bearer:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

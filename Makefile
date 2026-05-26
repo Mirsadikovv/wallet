@@ -1,138 +1,182 @@
-.PHONY: help build run test clean docker-up docker-down db-create db-drop migrate swagger lint
+.PHONY: help \
+        be.build be.run be.dev be.test be.lint be.fmt be.check be.swagger be.install be.clean \
+        be.db-create be.db-drop be.db-reset \
+        fe.install fe.dev fe.build fe.lint fe.fmt fe.check fe.clean \
+        docker-build docker-up docker-down docker-logs \
+        tools setup info test-api clean
 
-# Переменные
 APP_NAME=wallet_server
-BACKEND=backend
-GO_FILES=$(shell find $(BACKEND)/ -name "*.go" -type f)
 
-# Цвета для вывода
 GREEN=\033[0;32m
 YELLOW=\033[0;33m
 RED=\033[0;31m
-NC=\033[0m # No Color
+NC=\033[0m
 
-help: ## Показать эту справку
-	@echo "$(GREEN)Доступные команды:$(NC)"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-20s$(NC) %s\n", $$1, $$2}'
+# ═══════════════════════════════════════════════════════════════════════════════
+#  BACKEND  (be.*)
+# ═══════════════════════════════════════════════════════════════════════════════
 
-build: ## Собрать приложение
-	@echo "$(GREEN)Building $(APP_NAME)...$(NC)"
-	go build -C $(BACKEND) -o ../$(APP_NAME) .
-	@echo "$(GREEN)✓ Build complete: ./$(APP_NAME)$(NC)"
+be.build: ## Backend: собрать бинарник
+	$(MAKE) -C backend build
 
-run: ## Запустить приложение
-	@echo "$(GREEN)Starting $(APP_NAME)...$(NC)"
-	go run -C $(BACKEND) .
+be.run: ## Backend: запустить
+	$(MAKE) -C backend run
 
-dev: ## Запустить в режиме разработки (с автоперезагрузкой)
-	@echo "$(GREEN)Starting in dev mode...$(NC)"
-	@which air > /dev/null || (echo "$(RED)air not installed. Run: go install github.com/cosmtrek/air@latest$(NC)" && exit 1)
-	cd $(BACKEND) && air
+be.dev: ## Backend: hot-reload (air)
+	$(MAKE) -C backend dev
 
-test: ## Запустить тесты
-	@echo "$(GREEN)Running tests...$(NC)"
-	go test -C $(BACKEND) -v -race -coverprofile=../coverage.out ./...
-	go tool cover -html=coverage.out -o coverage.html
-	@echo "$(GREEN)✓ Coverage report: coverage.html$(NC)"
+be.test: ## Backend: тесты
+	$(MAKE) -C backend test
 
-clean: ## Очистить сборочные файлы
-	@echo "$(YELLOW)Cleaning...$(NC)"
-	rm -f $(APP_NAME)
-	rm -f coverage.out coverage.html
-	rm -rf docs/swagger/*.go docs/swagger/*.json docs/swagger/*.yaml
-	@echo "$(GREEN)✓ Cleaned$(NC)"
+be.lint: ## Backend: линтер
+	$(MAKE) -C backend lint
 
-install: ## Установить зависимости
-	@echo "$(GREEN)Installing dependencies...$(NC)"
-	go mod download -C $(BACKEND)
-	go mod tidy -C $(BACKEND)
-	@echo "$(GREEN)✓ Dependencies installed$(NC)"
+be.fmt: ## Backend: форматирование
+	$(MAKE) -C backend fmt
 
-lint: ## Запустить линтер
-	@echo "$(GREEN)Running linter...$(NC)"
-	@which golangci-lint > /dev/null || (echo "$(RED)golangci-lint not installed$(NC)" && exit 1)
-	golangci-lint run ./$(BACKEND)/...
+be.check: ## Backend: fmt + lint + test
+	$(MAKE) -C backend check
 
-fmt: ## Форматировать код
-	@echo "$(GREEN)Formatting code...$(NC)"
-	go fmt -C $(BACKEND) ./...
-	@echo "$(GREEN)✓ Code formatted$(NC)"
+be.swagger: ## Backend: сгенерировать Swagger
+	$(MAKE) -C backend swagger
 
-# База данных
-db-create: ## Создать базу данных
-	@echo "$(GREEN)Creating database...$(NC)"
-	createdb wallet_db || echo "$(YELLOW)Database might already exist$(NC)"
-	@echo "$(GREEN)✓ Database created$(NC)"
+be.install: ## Backend: установить зависимости
+	$(MAKE) -C backend install
 
-db-drop: ## Удалить базу данных
-	@echo "$(RED)Dropping database...$(NC)"
-	dropdb wallet_db || echo "$(YELLOW)Database might not exist$(NC)"
+be.clean: ## Backend: удалить артефакты
+	$(MAKE) -C backend clean
 
-db-reset: db-drop db-create ## Пересоздать базу данных
-	@echo "$(GREEN)✓ Database reset$(NC)"
+be.db-create: ## Backend: создать БД
+	$(MAKE) -C backend db-create
 
-migrate: ## Запустить миграции (выполняется автоматически при старте)
-	@echo "$(GREEN)Migrations run automatically on app start$(NC)"
+be.db-drop: ## Backend: удалить БД
+	$(MAKE) -C backend db-drop
 
-# Docker
-docker-build: ## Собрать Docker образ
+be.db-reset: ## Backend: пересоздать БД
+	$(MAKE) -C backend db-reset
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  FRONTEND  (fe.*)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+fe.install: ## Frontend: установить зависимости
+	$(MAKE) -C frontend install
+
+fe.dev: ## Frontend: dev-сервер
+	$(MAKE) -C frontend dev
+
+fe.build: ## Frontend: продакшен-сборка
+	$(MAKE) -C frontend build
+
+fe.lint: ## Frontend: линтер
+	$(MAKE) -C frontend lint
+
+fe.fmt: ## Frontend: форматирование
+	$(MAKE) -C frontend fmt
+
+fe.check: ## Frontend: все проверки
+	$(MAKE) -C frontend check
+
+fe.clean: ## Frontend: удалить артефакты
+	$(MAKE) -C frontend clean
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  DOCKER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+docker-build: ## Docker: собрать образ
 	@echo "$(GREEN)Building Docker image...$(NC)"
 	docker build -t wallet:latest .
-	@echo "$(GREEN)✓ Docker image built$(NC)"
+	@echo "$(GREEN)✓ Done$(NC)"
 
-docker-up: ## Запустить через Docker Compose
-	@echo "$(GREEN)Starting Docker containers...$(NC)"
+docker-up: ## Docker: запустить контейнеры
+	@echo "$(GREEN)Starting containers...$(NC)"
 	docker compose up -d
-	@echo "$(GREEN)✓ Containers started$(NC)"
+	@echo "$(GREEN)✓ Done$(NC)"
 
-docker-down: ## Остановить Docker контейнеры
-	@echo "$(YELLOW)Stopping Docker containers...$(NC)"
+docker-down: ## Docker: остановить контейнеры
+	@echo "$(YELLOW)Stopping containers...$(NC)"
 	docker compose down
-	@echo "$(GREEN)✓ Containers stopped$(NC)"
+	@echo "$(GREEN)✓ Done$(NC)"
 
-docker-logs: ## Показать логи Docker контейнеров
+docker-logs: ## Docker: логи
 	docker compose logs -f
 
-# Swagger
-swagger: ## Сгенерировать Swagger документацию
-	@echo "$(GREEN)Generating Swagger docs...$(NC)"
-	@which swag > /dev/null || (echo "$(RED)swag not installed. Run: go install github.com/swaggo/swag/cmd/swag@latest$(NC)" && exit 1)
-	cd $(BACKEND) && swag init -g src/main.go --output ../docs/swagger
-	@echo "$(GREEN)✓ Swagger docs generated in docs/swagger/$(NC)"
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ОБЩИЕ
+# ═══════════════════════════════════════════════════════════════════════════════
 
-# Тестирование API
-test-api: ## Тестировать API endpoints
-	@echo "$(GREEN)Testing API endpoints...$(NC)"
+clean: be.clean fe.clean ## Очистить все артефакты
+	rm -f coverage.out coverage.html
+	@echo "$(GREEN)✓ All cleaned$(NC)"
+
+test-api: ## Тестировать API через examples.sh
+	@echo "$(GREEN)Testing API...$(NC)"
 	bash examples.sh
 
-# Проверки
-check: fmt lint test ## Выполнить все проверки
-
-# Установка инструментов разработки
 tools: ## Установить инструменты разработки
-	@echo "$(GREEN)Installing development tools...$(NC)"
+	@echo "$(GREEN)Installing dev tools...$(NC)"
 	go install github.com/swaggo/swag/cmd/swag@latest
 	go install github.com/cosmtrek/air@latest
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	@echo "$(GREEN)✓ Tools installed$(NC)"
+	@echo "$(GREEN)✓ Done$(NC)"
 
-# Информация
-info: ## Показать информацию о проекте
-	@echo "$(GREEN)Project: TON Wallet API$(NC)"
-	@echo "  Go version:    $$(go version | awk '{print $$3}')"
-	@echo "  Binary:        $(APP_NAME)"
-	@echo "  Backend dir:   $(BACKEND)/"
-	@echo "  Go files:      $$(echo $(GO_FILES) | wc -w)"
-
-# Установка окружения
-setup: install db-create ## Полная настройка окружения
+setup: be.install be.db-create ## Полная настройка окружения
 	@echo "$(GREEN)Setting up environment...$(NC)"
-	@test -f .env || (echo "Creating .env from .env.example..." && cp .env.example .env)
-	@echo "$(GREEN)✓ Setup complete!$(NC)"
+	@test -f .env || (echo "$(YELLOW)Creating .env from .env.example...$(NC)" && cp .env.example .env)
+	@echo "$(GREEN)✓ Setup complete$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Next steps:$(NC)"
-	@echo "  1. Edit .env file with your settings"
-	@echo "  2. Run: make build"
-	@echo "  3. Run: make run"
+	@echo "  1. Edit .env"
+	@echo "  2. make be.run"
+
+info: ## Информация о проекте
+	@echo "$(GREEN)TON Wallet$(NC)"
+	@echo "  Go:       $$(go version | awk '{print $$3}')"
+	@echo "  Binary:   ./$(APP_NAME)"
+	@echo "  Backend:  backend/"
+	@echo "  Frontend: frontend/"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  АЛИАСЫ (обратная совместимость)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+build:   be.build
+run:     be.run
+dev:     be.dev
+test:    be.test
+lint:    be.lint
+fmt:     be.fmt
+check:   be.check
+swagger: be.swagger
+install: be.install
+db-create: be.db-create
+db-drop:   be.db-drop
+db-reset:  be.db-reset
+
+# ═══════════════════════════════════════════════════════════════════════════════
 
 .DEFAULT_GOAL := help
+
+help:
+	@echo ""
+	@echo "$(GREEN)╔══════════════════════════════════════╗$(NC)"
+	@echo "$(GREEN)║         TON Wallet — Makefile        ║$(NC)"
+	@echo "$(GREEN)╚══════════════════════════════════════╝$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Backend (be.*):$(NC)"
+	@grep -E '^be\.[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(YELLOW)Frontend (fe.*):$(NC)"
+	@grep -E '^fe\.[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(YELLOW)Docker:$(NC)"
+	@grep -E '^docker-[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(YELLOW)Общие:$(NC)"
+	@grep -E '^(clean|test-api|tools|setup|info):.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
+	@echo ""
