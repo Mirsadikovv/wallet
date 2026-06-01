@@ -13,6 +13,7 @@ wallet/
 │       ├── modules/  ← доменные модули
 │       └── common/   ← enum, helpers, middleware, utils
 ├── frontend/         ← Vue 3 frontend
+├── bot/              ← Telegram bot с web-app
 └── Makefile          ← все команды через make
 ```
 
@@ -32,4 +33,5 @@ make migrate      ← запустить миграции
 ## Стайл-гайды (читай перед написанием кода)
 @.claude/CLAUDE_STYLE_BACKEND.md
 @.claude/CLAUDE_STYLE_FRONTEND.md
+@.claude/CLAUDE_STYLE_TELEGRAM_BOT.md
 @.claude/CLAUDE_STYLE_DEVOPS.md

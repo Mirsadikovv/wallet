@@ -7,13 +7,15 @@ import (
 )
 
 type User struct {
-	ID        int64          `json:"id" gorm:"primaryKey;autoIncrement"`
-	Username  string         `json:"username" gorm:"type:varchar(255);uniqueIndex;not null"`
-	Email     string         `json:"email" gorm:"type:varchar(255);uniqueIndex;not null"`
-	CreatedAt time.Time      `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
-	DeletedAt gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
-	Wallets   []*Wallet      `json:"wallets,omitempty" gorm:"foreignKey:UserID"`
+	ID               int64          `json:"id" gorm:"primaryKey;autoIncrement"`
+	TelegramID       *int64         `json:"telegram_id" gorm:"uniqueIndex"`
+	TelegramUsername string         `json:"telegram_username" gorm:"type:varchar(255)"`
+	Username         string         `json:"username" gorm:"type:varchar(255);uniqueIndex;not null"`
+	Email            string         `json:"email" gorm:"type:varchar(255);uniqueIndex;not null"`
+	CreatedAt        time.Time      `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt        time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
+	DeletedAt        gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
+	Wallets          []*Wallet      `json:"wallets,omitempty" gorm:"foreignKey:UserID"`
 } // @name User
 
 type Wallet struct {

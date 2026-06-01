@@ -2,6 +2,7 @@
         be.build be.run be.dev be.test be.lint be.fmt be.check be.swagger be.install be.clean \
         be.db-create be.db-drop be.db-reset \
         fe.install fe.dev fe.build fe.lint fe.fmt fe.check fe.clean \
+        bot.run bot.dev bot.build bot.install bot.clean \
         docker-build docker-up docker-down docker-logs \
         tools setup info test-api clean
 
@@ -79,6 +80,25 @@ fe.check: ## Frontend: все проверки
 
 fe.clean: ## Frontend: удалить артефакты
 	$(MAKE) -C frontend clean
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  BOT  (bot.*)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+bot.install: ## Bot: установить зависимости
+	cd bot && go mod tidy
+
+bot.run: ## Bot: запустить (prod)
+	cd bot && go run .
+
+bot.dev: ## Bot: запустить с hot-reload (dev)
+	cd bot && go run -tags dev .
+
+bot.build: ## Bot: собрать бинарник
+	cd bot && go build -tags dev -o ../wallet_bot .
+
+bot.clean: ## Bot: удалить бинарник
+	rm -f wallet_bot
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  DOCKER
@@ -170,6 +190,10 @@ help:
 	@echo ""
 	@echo "$(YELLOW)Frontend (fe.*):$(NC)"
 	@grep -E '^fe\.[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(YELLOW)Bot (bot.*):$(NC)"
+	@grep -E '^bot\.[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(YELLOW)Docker:$(NC)"
