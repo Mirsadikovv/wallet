@@ -3,6 +3,7 @@ package utils
 import (
 	"math/rand"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -12,7 +13,8 @@ type otpEntry struct {
 }
 
 type OTPCache struct {
-	m map[string]otpEntry
+	mu sync.Mutex
+	m  map[string]otpEntry
 }
 
 func NewOTPCache() *OTPCache {
@@ -21,6 +23,8 @@ func NewOTPCache() *OTPCache {
 
 func (o *OTPCache) Generate(email string) string {
 	code := strconv.Itoa(100000 + rand.Intn(900000))
+	o.mu.Lock()
+	defer o.mu.Unlock()
 	o.m[email] = otpEntry{
 		code:      code,
 		expiresAt: time.Now().Add(5 * time.Minute),
@@ -29,6 +33,8 @@ func (o *OTPCache) Generate(email string) string {
 }
 
 func (o *OTPCache) Verify(email, code string) bool {
+	o.mu.Lock()
+	defer o.mu.Unlock()
 	entry, ok := o.m[email]
 	if !ok {
 		return false

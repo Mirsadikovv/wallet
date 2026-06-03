@@ -35,8 +35,10 @@ func Start(cfg *config.Config, db *gorm.DB) error {
 
 	for update := range updates {
 		if update.Message != nil {
-			curLang := handlers.HandleUpdate(bot, update, cfg, db, langCache, stateCache, otpCache)
-			langCache.Set(update.Message.From.ID, curLang.Get(update.Message.From.ID))
+			go func(upd tgbotapi.Update) {
+				curLang := handlers.HandleUpdate(bot, upd, cfg, db, langCache, stateCache, otpCache)
+				langCache.Set(upd.Message.From.ID, curLang.Get(upd.Message.From.ID))
+			}(update)
 		}
 	}
 
