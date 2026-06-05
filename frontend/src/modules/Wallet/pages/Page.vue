@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useRouter } from "vue-router";
 import { WalletService, type WalletType } from "../service";
 import PageLoading from "@/components/PageLoading.vue";
 import LoadingSkeleton from "@/components/LoadingSkeleton.vue";
@@ -7,6 +8,7 @@ import AppFooter from "@/components/AppFooter.vue";
 import { useAuthStore } from "@/store/auth-store";
 import { useTelegramViewport } from "@/composables/useTelegramViewport";
 
+const router = useRouter();
 const authStore = useAuthStore();
 const { containerStyle } = useTelegramViewport();
 
@@ -45,7 +47,7 @@ function truncateAddress(address: string) {
               flat
               bordered
               class="rounded-xl cursor-pointer hover:shadow-md transition-shadow"
-              @click="$router.push({ name: 'WALLET_VIEW', params: { id: wallet.id } })"
+              @click="router.push({ name: 'WALLET_VIEW', params: { id: wallet.id } })"
             >
               <q-card-section class="p-4">
                 <div class="flex items-center justify-between mb-2">

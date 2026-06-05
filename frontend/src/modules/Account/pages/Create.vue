@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
-import { AccountService, type AccountCreateType } from "../service";
+import { AccountService } from "../service";
 import Form from "@/components/quasar/form/Form.vue";
 import Button from "@/components/quasar/btn/Button.vue";
 import Title from "@/components/Title.vue";
@@ -14,9 +14,8 @@ const router = useRouter();
 const authStore = useAuthStore();
 const { containerStyle } = useTelegramViewport();
 
-const accountModel = ref<Partial<AccountCreateType>>({
-  currency: "USD",
-});
+const accountModel = ref({ name: "", currency: "USD" });
+const formModel = accountModel as unknown as Ref<Record<string, unknown>>;
 
 const currencies = [
   { label: "USD — Доллар США", value: "USD" },
@@ -24,11 +23,15 @@ const currencies = [
   { label: "RUB — Рубль", value: "RUB" },
 ];
 
-async function save(model: AccountCreateType) {
+async function save() {
   const userId = authStore.userId;
   if (!userId) return false;
 
-  const response = await AccountService.create({ ...model, user_id: userId });
+  const response = await AccountService.create({
+    name: accountModel.value.name,
+    currency: accountModel.value.currency,
+    user_id: userId,
+  });
   if (!response) return false;
 
   router.push({ name: "ACCOUNT_PAGE" });
@@ -52,14 +55,14 @@ async function save(model: AccountCreateType) {
           </q-breadcrumbs>
         </div>
 
-        <Form v-model="accountModel as Record<string, unknown>" :save="save as (model: Record<string, unknown>) => Promise<boolean>">
+        <Form v-model="formModel" :save="save">
           <template #title>
             <Title class="mb-5">{{ $tl("create_account") }}</Title>
           </template>
 
-          <template #name="{ model }">
+          <template #name>
             <q-input
-              v-model="(model as Partial<AccountCreateType>).name"
+              v-model="accountModel.name"
               :label="$tl('account_name')"
               outlined
               dense
@@ -68,9 +71,9 @@ async function save(model: AccountCreateType) {
             />
           </template>
 
-          <template #currency="{ model }">
+          <template #currency>
             <q-select
-              v-model="(model as Partial<AccountCreateType>).currency"
+              v-model="accountModel.currency"
               :options="currencies"
               emit-value
               map-options

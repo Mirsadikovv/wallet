@@ -14,6 +14,8 @@ import (
 	"gorm.io/gorm/logger"
 
 	_ "wallet/docs/swagger" // swagger generated docs
+	account "wallet/src/modules/account"
+	account_model "wallet/src/modules/account/model"
 	wallet "wallet/src/modules/wallet"
 	wallet_model "wallet/src/modules/wallet/model"
 )
@@ -103,6 +105,8 @@ func Exec(env *Env) {
 		log.Fatalf("Failed to initialize wallet module: %v", err)
 	}
 
+	account.Cmd(e, db)
+
 	if err := e.Start(fmt.Sprintf(":%d", env.HTTP_Port)); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
@@ -113,6 +117,7 @@ func migration(db *gorm.DB) error {
 		&wallet_model.User{},
 		&wallet_model.Wallet{},
 		&wallet_model.Transaction{},
+		&account_model.Account{},
 	); err != nil {
 		return fmt.Errorf("auto migrate failed: %w", err)
 	}

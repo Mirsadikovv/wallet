@@ -3,7 +3,7 @@
         be.db-create be.db-drop be.db-reset \
         fe.install fe.dev fe.build fe.lint fe.fmt fe.check fe.clean \
         bot.run bot.dev bot.build bot.install bot.clean \
-        docker-build docker-up docker-down docker-logs \
+        docker-build docker-up docker-down docker-restart docker-logs docker-ps \
         tools setup info test-api clean
 
 APP_NAME=wallet_server
@@ -104,12 +104,12 @@ bot.clean: ## Bot: удалить бинарник
 #  DOCKER
 # ═══════════════════════════════════════════════════════════════════════════════
 
-docker-build: ## Docker: собрать образ
-	@echo "$(GREEN)Building Docker image...$(NC)"
-	docker build -t wallet:latest .
+docker-build: ## Docker: собрать все образы
+	@echo "$(GREEN)Building all Docker images...$(NC)"
+	docker compose build
 	@echo "$(GREEN)✓ Done$(NC)"
 
-docker-up: ## Docker: запустить контейнеры
+docker-up: ## Docker: запустить все контейнеры
 	@echo "$(GREEN)Starting containers...$(NC)"
 	docker compose up -d
 	@echo "$(GREEN)✓ Done$(NC)"
@@ -119,8 +119,18 @@ docker-down: ## Docker: остановить контейнеры
 	docker compose down
 	@echo "$(GREEN)✓ Done$(NC)"
 
-docker-logs: ## Docker: логи
+docker-restart: ## Docker: пересобрать и перезапустить
+	@echo "$(YELLOW)Rebuilding and restarting...$(NC)"
+	docker compose down
+	docker compose build
+	docker compose up -d
+	@echo "$(GREEN)✓ Done$(NC)"
+
+docker-logs: ## Docker: логи всех сервисов
 	docker compose logs -f
+
+docker-ps: ## Docker: статус контейнеров
+	docker compose ps
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  ОБЩИЕ

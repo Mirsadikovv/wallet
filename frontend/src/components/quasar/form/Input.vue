@@ -3,7 +3,7 @@ defineProps<{
   modelValue?: string | number | null;
   label?: string;
   placeholder?: string;
-  type?: string;
+  type?: "text" | "password" | "email" | "search" | "tel" | "file" | "number" | "url" | "time" | "date" | "datetime-local" | "textarea";
   rules?: ((val: unknown) => boolean | string)[];
   disable?: boolean;
   readonly?: boolean;

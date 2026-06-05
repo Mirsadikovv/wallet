@@ -73,57 +73,40 @@ export type BalanceType = {
   balance: string;
 };
 
+const errHandler = async (err: unknown) => {
+  const { ErrorNotify } = await import("@/common/Notify");
+  ErrorNotify(
+    (err as { response?: { data?: { message?: string } }; message: string })?.response?.data
+      ?.message || (err as Error).message,
+  );
+};
+
 class WalletService {
-  @Try({
-    async onError(err) {
-      const { ErrorNotify } = await import("@/common/Notify");
-      ErrorNotify((err as { response?: { data?: { message?: string } }; message: string })?.response?.data?.message || (err as Error).message);
-    },
-  })
+  @Try({ onError: errHandler })
   async list(user_id: number) {
     const { data } = await api.get<WalletListResponse>(`/v1/wallet/list?user_id=${user_id}`);
     return data;
   }
 
-  @Try({
-    async onError(err) {
-      const { ErrorNotify } = await import("@/common/Notify");
-      ErrorNotify((err as { response?: { data?: { message?: string } }; message: string })?.response?.data?.message || (err as Error).message);
-    },
-  })
+  @Try({ onError: errHandler })
   async create(dto: WalletCreateType) {
     const { data } = await api.post<WalletType>("/v1/wallet", dto);
     return data;
   }
 
-  @Try({
-    async onError(err) {
-      const { ErrorNotify } = await import("@/common/Notify");
-      ErrorNotify((err as { response?: { data?: { message?: string } }; message: string })?.response?.data?.message || (err as Error).message);
-    },
-  })
+  @Try({ onError: errHandler })
   async getInfo(id: number) {
     const { data } = await api.get<WalletInfoType>(`/v1/wallet/${id}`);
     return data;
   }
 
-  @Try({
-    async onError(err) {
-      const { ErrorNotify } = await import("@/common/Notify");
-      ErrorNotify((err as { response?: { data?: { message?: string } }; message: string })?.response?.data?.message || (err as Error).message);
-    },
-  })
+  @Try({ onError: errHandler })
   async getBalance(id: number) {
     const { data } = await api.get<BalanceType>(`/v1/wallet/${id}/balance`);
     return data;
   }
 
-  @Try({
-    async onError(err) {
-      const { ErrorNotify } = await import("@/common/Notify");
-      ErrorNotify((err as { response?: { data?: { message?: string } }; message: string })?.response?.data?.message || (err as Error).message);
-    },
-  })
+  @Try({ onError: errHandler })
   async getTransactions(id: number, limit = 10) {
     const { data } = await api.get<TransactionsResponse>(
       `/v1/wallet/${id}/transactions?limit=${limit}`,
@@ -131,23 +114,13 @@ class WalletService {
     return data;
   }
 
-  @Try({
-    async onError(err) {
-      const { ErrorNotify } = await import("@/common/Notify");
-      ErrorNotify((err as { response?: { data?: { message?: string } }; message: string })?.response?.data?.message || (err as Error).message);
-    },
-  })
+  @Try({ onError: errHandler })
   async send(id: number, dto: SendCoinsType) {
     const { data } = await api.post<SendCoinsResponse>(`/v1/wallet/${id}/send`, dto);
     return data;
   }
 
-  @Try({
-    async onError(err) {
-      const { ErrorNotify } = await import("@/common/Notify");
-      ErrorNotify((err as { response?: { data?: { message?: string } }; message: string })?.response?.data?.message || (err as Error).message);
-    },
-  })
+  @Try({ onError: errHandler })
   async remove(id: number) {
     const { data } = await api.delete<{ success: boolean; message: string }>(`/v1/wallet/${id}`);
     return data;

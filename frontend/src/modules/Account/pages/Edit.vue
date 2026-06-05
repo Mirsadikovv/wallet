@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
-import { AccountService, type AccountType, type AccountUpdateType } from "../service";
+import { AccountService, type AccountType } from "../service";
 import PageLoading from "@/components/PageLoading.vue";
 import LoadingSkeleton from "@/components/LoadingSkeleton.vue";
 import Form from "@/components/quasar/form/Form.vue";
@@ -31,14 +31,15 @@ const accountModel = ref<AccountType>({
   is_active: true,
   created_at: "",
 });
+const formModel = accountModel as unknown as Ref<Record<string, unknown>>;
 
 async function loadAccount() {
   const data = await AccountService.getByID(+id);
   if (data) accountModel.value = data;
 }
 
-async function save(model: AccountUpdateType) {
-  const response = await AccountService.update(+id, { name: model.name });
+async function save() {
+  const response = await AccountService.update(+id, { name: accountModel.value.name });
   if (!response) return false;
 
   router.push({ name: "ACCOUNT_PAGE" });
@@ -65,17 +66,14 @@ async function save(model: AccountUpdateType) {
             </q-breadcrumbs>
           </div>
 
-          <Form
-            v-model="accountModel as unknown as Record<string, unknown>"
-            :save="save as (model: Record<string, unknown>) => Promise<boolean>"
-          >
+          <Form v-model="formModel" :save="save">
             <template #title>
               <Title class="mb-5">{{ $tl("account_edit_title") }}</Title>
             </template>
 
-            <template #name="{ model }">
+            <template #name>
               <q-input
-                v-model="(model as AccountType).name"
+                v-model="accountModel.name"
                 :label="$tl('account_name')"
                 outlined
                 dense

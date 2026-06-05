@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { useRouter, useRoute } from "vue-router";
+import { useRouter, useRoute, type RouteLocationRaw } from "vue-router";
 
 defineProps<{
   username?: string;
   showAddButton?: boolean;
-  addButtonRoute?: Record<string, unknown>;
+  addButtonRoute?: RouteLocationRaw;
   addButtonIcon?: string;
 }>();
 
@@ -42,7 +42,7 @@ function isActive(routePrefix: string) {
         :icon="addButtonIcon || 'add'"
         color="primary"
         class="-mt-6"
-        @click="router.push(addButtonRoute as string)"
+        @click="router.push(addButtonRoute!)"
       />
 
       <q-btn

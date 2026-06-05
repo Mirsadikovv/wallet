@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
-import { WalletService, type WalletCreateType } from "../service";
+import { WalletService } from "../service";
 import Form from "@/components/quasar/form/Form.vue";
 import Button from "@/components/quasar/btn/Button.vue";
 import Title from "@/components/Title.vue";
@@ -14,10 +14,8 @@ const router = useRouter();
 const authStore = useAuthStore();
 const { containerStyle } = useTelegramViewport();
 
-const walletModel = ref<Partial<WalletCreateType>>({
-  wallet_type: "V5R1Final",
-  network: "testnet",
-});
+const walletModel = ref({ wallet_type: "V5R1Final", network: "testnet" });
+const formModel = walletModel as unknown as Ref<Record<string, unknown>>;
 
 const walletTypes = ["V5R1Final", "V4R2"];
 const networks = [
@@ -25,11 +23,15 @@ const networks = [
   { label: "Mainnet", value: "mainnet" },
 ];
 
-async function save(model: WalletCreateType) {
+async function save() {
   const userId = authStore.userId;
   if (!userId) return false;
 
-  const response = await WalletService.create({ ...model, user_id: userId });
+  const response = await WalletService.create({
+    wallet_type: walletModel.value.wallet_type,
+    network: walletModel.value.network,
+    user_id: userId,
+  });
   if (!response) return false;
 
   router.push({ name: "WALLET_PAGE" });
@@ -53,14 +55,14 @@ async function save(model: WalletCreateType) {
           </q-breadcrumbs>
         </div>
 
-        <Form v-model="walletModel as Record<string, unknown>" :save="save as (model: Record<string, unknown>) => Promise<boolean>">
+        <Form v-model="formModel" :save="save">
           <template #title>
             <Title class="mb-5">{{ $tl("create_wallet") }}</Title>
           </template>
 
-          <template #wallet_type="{ model }">
+          <template #wallet_type>
             <q-select
-              v-model="(model as Partial<WalletCreateType>).wallet_type"
+              v-model="walletModel.wallet_type"
               :options="walletTypes"
               :label="$tl('wallet_type')"
               outlined
@@ -70,9 +72,9 @@ async function save(model: WalletCreateType) {
             />
           </template>
 
-          <template #network="{ model }">
+          <template #network>
             <q-select
-              v-model="(model as Partial<WalletCreateType>).network"
+              v-model="walletModel.network"
               :options="networks"
               emit-value
               map-options
